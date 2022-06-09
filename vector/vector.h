@@ -10,6 +10,8 @@ template<typename T>
 struct is_pointer<T*> { static const bool value = true; };
 
 
+
+
 template <typename T>
 class vector
 {
@@ -17,14 +19,20 @@ class vector
 	const T& operator[](int index) const { return _elem[index]; }
 
 public:
-	operator bool() const { return _elem != NULL; }
+	operator bool() const { return _elem != NULL && _elem != nullptr; }
 
-	vector() {};
+	vector() {}
 	explicit vector(int size);
-	~vector() { free(); }
+	~vector() { is_pointer<T>::value ? pool_free() : free(); }
 
-	T& at(int index);
-	const T& at(int index) const;
+	T at(int index);
+	const T at(int index) const;
+
+	T* begin() { return _elem; }
+	T* end() { return _elem + _size; }
+
+	const T* c_begin() const { return _elem; }
+	const T* c_end() const { return _elem + _size; }
 
 	int size() const { return _size; }
 	int capacity() const { return _capacity; }
@@ -37,10 +45,15 @@ public:
 	void shrink_to_fit();
 
 	void free();
-	void free_pool();
+	
+	// Only use with ExAllocatePoolWithTag
+	void pool_free();
+	// Only use with ExAllocatePoolWithTag
+	void pool_pop_back();
 
 private:
 	T* _elem{};
+	void* _fail{};
 	int _size{};
 	int _capacity{};
 };
@@ -52,44 +65,70 @@ vector<T>::vector(int size)
 }
 
 template <typename T>
-T& vector<T>::at(int index)
+T vector<T>::at(int index)
 {
 	__try
 	{
-		if (index < 0 || index >= _size)
+		if (index >= 0 && index < _size)
 		{
-			DbgMsg("T& vector<T>::at(%d) -> out of bounds\n", index);
-			return *_elem;
+			if (is_pointer<T>::value)
+			{
+				if (!_elem[index])
+				{
+					DbgMsg("T Vector<T>::at(%d) -> dereferencing null/nullptr\n", index);
+					return (T)(ULONG_PTR)&_elem[index];
+				}
+				else
+					return _elem[index];
+			}
+			else
+				return _elem[index];
 		}
-
-		return _elem[index];
+		else
+		{
+			DbgMsg("T Vector<T>::at(%d) -> OUT OF BOUNDS\n", index);
+			return (T)(ULONG_PTR)&_elem[index];
+		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
 		auto status = exception_code();
 		DbgMsg("status = (%x)\n", status);
-		return *_elem;
+		return (T)status;
 	}
 }
 
 template <typename T>
-const T& vector<T>::at(int index) const
+const T vector<T>::at(int index) const
 {
 	__try
 	{
-		if (index < 0 || index >= _size)
+		if (index >= 0 && index < _size)
 		{
-			DbgMsg("const T& vector<T>::at(%d) const -> out of bounds\n", index);
-			return *_elem;
+			if (is_pointer<T>::value)
+			{
+				if (!_elem[index])
+				{
+					DbgMsg("const T Vector<T>::at(%d) const -> dereferencing null/nullptr\n", index);
+					return (T)(ULONG_PTR)&_elem[index];
+				}
+				else
+					return _elem[index];
+			}
+			else
+				return _elem[index];
 		}
-
-		return _elem[index];
+		else
+		{
+			DbgMsg("const T Vector<T>::at(%d) const -> OUT OF BOUNDS\n", index);
+			return (T)(ULONG_PTR)&_elem[index];
+		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
 		auto status = exception_code();
 		DbgMsg("status = (%x)\n", status);
-		return *_elem;
+		return (T)status;
 	}
 }
 
@@ -194,21 +233,46 @@ void vector<T>::free()
 }
 
 template <typename T>
-void vector<T>::free_pool()
+void vector<T>::pool_free()
 {
 	if (_elem)
 	{
 		while (_size > 0 && is_pointer<T>::value)
 		{
 			auto ptr = (void*)_elem[_size - 1];
-			ExFreePool(ptr);
-			DbgMsg("void vector<T>::free_pool() -> ExFreePool(%llx) called\n", (ULONG_PTR)ptr);
-			_elem[--_size] = NULL;
+			if (ptr != NULL && ptr != nullptr)
+			{
+				ExFreePool(ptr);
+				DbgMsg("void vector<T>::free_pool() -> ExFreePool(%llx) called\n", (ULONG_PTR)ptr);
+				_elem[--_size] = NULL;
+			}
+			else
+				--_size;
 		}
 
 		MmFreeNonCachedMemory(_elem, sizeof(T) * _capacity);
 		_elem = NULL;
-		DbgMsg("void vector<T>::free_pool() -> MmFreeNonCachedMemory called\n");
+		DbgMsg("void vector<T>::pool_free() -> MmFreeNonCachedMemory called\n");
 	}
 	return;
+}
+
+template <typename T>
+void vector<T>::pool_pop_back()
+{
+	if (_size <= 0)
+		return;
+
+	if (is_pointer<T>::value)
+	{
+		auto ptr = (void*)_elem[_size - 1];
+		if (ptr != NULL && ptr != nullptr)
+		{
+			ExFreePool(ptr);
+			DbgMsg("void vector<T>::pool_pop_back() -> ExFreePool(%llx) called\n", (ULONG_PTR)ptr);
+			_elem[--_size] = NULL;
+		}
+		else
+			--_size;
+	}
 }
