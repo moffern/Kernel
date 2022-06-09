@@ -127,7 +127,7 @@ void vector<T>::reserve(int newCapacity)
 		if (_elem)
 		{
 			RtlCopyMemory(tmp, _elem, sizeof(T) * _size);
-			MmFreeNonCachedMemory(_elem, sizeof(T) * _size);
+			MmFreeNonCachedMemory(_elem, sizeof(T) * _capacity);
 			DbgMsg("void vector<T>::reserve(%d) -> MmFreeNonCachedMemory called\n", newCapacity);
 			_elem = tmp;
 			_capacity = newCapacity;
