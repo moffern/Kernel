@@ -22,7 +22,7 @@ public:
 	operator bool() const { return _elem != NULL && _elem != nullptr; }
 
 	vector() {}
-	explicit vector(int size);
+	explicit vector(int size) { reserve(size); }
 	~vector() { is_pointer<T>::value ? pool_free() : free(); }
 
 	T at(int index);
@@ -58,11 +58,6 @@ private:
 	int _capacity{};
 };
 
-template <typename T>
-vector<T>::vector(int size)
-{
-	reserve(size);
-}
 
 template <typename T>
 T vector<T>::at(int index)
