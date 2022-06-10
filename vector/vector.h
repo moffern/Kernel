@@ -50,7 +50,6 @@ public:
 
 private:
 	T* _elem{};
-	void* _fail{};
 	int _size{};
 	int _capacity{};
 };
