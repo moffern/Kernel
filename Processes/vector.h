@@ -17,14 +17,6 @@ class vector
 	constexpr T& operator[](int index) const { return _elem[index]; }
 public:
 	operator bool() const { return _elem != nullptr; }
-
-	// comment these out if vector is global
-	// ---------------------------------------------------------------
-	/*vector() {}
-	explicit vector(int size) { reserve(size); }
-	~vector() { if (_elem) free(); }*/
-	// ---------------------------------------------------------------
-
 	
 	constexpr T read(int index) const;
 	void write(int index, const T& value);
