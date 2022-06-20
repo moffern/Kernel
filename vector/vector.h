@@ -15,76 +15,39 @@ struct is_pointer<T*> { static const bool value = true; };
 template <typename T>
 class vector
 {
+public:
+	operator bool() const { return _elem != nullptr; }
+
+	// only works if all vectors are local
+	//---------------------------------------------------
+	/*vector() {}
+	explicit vector(int size) { reserve(size); }
+	~vector() { if (_elem) free(); }*/
+	//---------------------------------------------------
+
 	T& operator[](int index) { return _elem[index]; }
 	constexpr T& operator[](int index) const { return _elem[index]; }
 
-public:
-	operator bool() const { return _elem != NULL && _elem != nullptr; }
-
-	vector() {}
-	explicit vector(int size) { reserve(size); }
-	~vector() { is_pointer<T>::value ? pool_free() : free(); }
-
-	constexpr T at(int index) const;
-
-	constexpr T* begin() const { return _elem ? _elem : NULL; }
-	constexpr T* end() const { return _elem ? _elem + _size : NULL; }
+	constexpr T* begin() const { return _elem; }
+	constexpr T* end() const { return _elem + _size; }
 
 	constexpr int size() const noexcept { return _size; }
 	constexpr int capacity() const noexcept { return _capacity; }
 	
 	void push_back(const T& value);
 	void pop_back();
-	void insert(int index, const T& value);
 	
 	void reserve(int newCapacity);
 	void resize(int newSize);
 	void shrink_to_fit();
 
 	void free();
-	
-	// Only use with ExAllocatePoolWithTag
-	void pool_free();
-	// Only use with ExAllocatePoolWithTag
-	void pool_pop_back();
 
 private:
-	T* _elem{};
-	int _size{};
-	int _capacity{};
+	T* _elem{ nullptr };
+	int _size{ 0 };
+	int _capacity{ 0 };
 };
-
-template <typename T>
-constexpr T vector<T>::at(int index) const
-{
-	__try
-	{
-		if (index >= 0 && index < _size)
-		{
-			if (!_elem[index] && is_pointer<T>::value)
-			{
-				DbgMsg("constexpr T Vector<T>::at(%d) const -> dereferencing null/nullptr\n", index);
-				return (T)(ULONG_PTR)&_elem[index];
-			}
-			else
-				return _elem[index];
-		}
-		else
-		{
-			DbgMsg("constexpr T Vector<T>::at(%d) const -> OUT OF BOUNDS\n", index);
-			if (is_pointer<T>::value)
-				return (T)(ULONG_PTR)&_elem[index];
-			else
-				return T{};
-		}
-	}
-	__except (EXCEPTION_EXECUTE_HANDLER)
-	{
-		auto status = exception_code();
-		DbgMsg("status = (%x)\n", status);
-		return T{};
-	}
-}
 
 template <typename T>
 void vector<T>::push_back(const T& value)
@@ -104,17 +67,6 @@ void vector<T>::pop_back()
 		return;
 
 	_elem[--_size] = 0;
-}
-
-template <typename T>
-void vector<T>::insert(int index, const T& value)
-{
-	if (index >= 0 && index < _size)
-		_elem[index] = value;
-	else
-	{
-		DbgMsg("insert(%d, ?) -> OUT OF BOUNDS\n", index);
-	}
 }
 
 template <typename T>
@@ -190,51 +142,7 @@ void vector<T>::free()
 	if (_elem)
 	{
 		MmFreeNonCachedMemory(_elem, sizeof(T) * _capacity);
-		_elem = NULL;
+		_elem = nullptr;
 		DbgMsg("void vector<T>::free() -> MmFreeNonCachedMemory called\n");
-	}
-}
-
-template <typename T>
-void vector<T>::pool_free()
-{
-	if (_elem)
-	{
-		while (_size > 0 && is_pointer<T>::value)
-		{
-			auto ptr = (void*)_elem[_size - 1];
-			if (ptr)
-			{
-				ExFreePool(ptr);
-				DbgMsg("void vector<T>::free_pool() -> ExFreePool(%llx) called\n", (ULONG_PTR)ptr);
-				_elem[--_size] = NULL;
-			}
-			else
-				--_size;
-		}
-
-		MmFreeNonCachedMemory(_elem, sizeof(T) * _capacity);
-		_elem = NULL;
-		DbgMsg("void vector<T>::pool_free() -> MmFreeNonCachedMemory called\n");
-	}
-}
-
-template <typename T>
-void vector<T>::pool_pop_back()
-{
-	if (_size <= 0)
-		return;
-
-	if (is_pointer<T>::value)
-	{
-		auto ptr = (void*)_elem[_size - 1];
-		if (ptr)
-		{
-			ExFreePool(ptr);
-			DbgMsg("void vector<T>::pool_pop_back() -> ExFreePool(%llx) called\n", (ULONG_PTR)ptr);
-			_elem[--_size] = NULL;
-		}
-		else
-			--_size;
 	}
 }
