@@ -18,6 +18,7 @@ class vector
 public:
 	operator bool() const { return _elem != nullptr; }
 
+	// read only works with pointers
 	constexpr T read(int index) const;
 	void write(int index, const T& value);
 
