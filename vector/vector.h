@@ -3,13 +3,6 @@
 
 #define DbgMsg(x, ...) DbgPrintEx(0, 0, x, __VA_ARGS__)
 
-template<typename T>
-struct is_pointer { static const bool value = false; };
-
-template<typename T>
-struct is_pointer<T*> { static const bool value = true; };
-
-
 
 
 template <typename T>
