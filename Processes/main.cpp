@@ -177,22 +177,6 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 					names.pop_back();
 				}
 
-				for (int i = 0; i < processes.size(); ++i)
-				{
-					if (strstr(processes.read(i)->Name, name))
-					{
-						ExFreePool(processes.read(i));
-						processes.write(i, nullptr);
-						if (i == processes.size() - 1)
-							processes.pop_back();
-						else
-						{
-							processes.adjust(i);
-							processes.pop_back();
-						}
-					}
-				}
-
 				DbgMsg("Name list:\n");
 				for (int i = 0; i < names.size(); ++i)
 				{
@@ -271,16 +255,6 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 	{
 		__try
 		{
-			/*{
-				AutoLock lock(mutex);
-				while (allProcesses.size() > 0)
-				{
-					ExFreePool(allProcesses.read(allProcesses.size() - 1));
-					allProcesses.pop_back();
-				}
-			}
-			FindProcess(nullptr, allProcesses);*/
-
 			auto buffer = (ProcessInfo*)Irp->AssociatedIrp.SystemBuffer;
 			auto len = stack->Parameters.DeviceIoControl.InputBufferLength;
 			auto _size = len / sizeof(ProcessInfo);
@@ -340,9 +314,7 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 							AutoLock lock(mutex);
 							ExFreePool(allProcesses.read(i));
 							allProcesses.write(i, nullptr);
-							for (int j = i; j < allProcesses.size() - 1; ++j)
-								allProcesses.at(j) = allProcesses.at(j + 1);
-							//allProcesses.adjust(i);
+							allProcesses.adjust(i);
 							allProcesses.pop_back();
 						}
 					}
@@ -542,18 +514,15 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 				}
 				else
 				{
-					if (strstr(allProcesses.read(index)->Name, proc->Name))
-					{
-						DbgMsg("Last -> PID: (%u) removed [%s]\n", pid, allProcesses.read(index)->Name);
-						ExFreePool(allProcesses.read(index));
-						allProcesses.write(index, nullptr);
-						for (int i = index; i < allProcesses.size() - 1; ++i)
-							allProcesses.at(i) = allProcesses.at(i + 1);
-						//allProcesses.adjust(index);
-						allProcesses.pop_back();
-					}
+					DbgMsg("Last -> PID: (%u) removed [%s]\n", pid, allProcesses.read(index)->Name);
+					ExFreePool(allProcesses.read(index));
+					allProcesses.write(index, nullptr);
+					allProcesses.adjust(index);
+					allProcesses.pop_back();
 				}
 			}
+			else
+				DbgMsg("(HIDDEN)PID: (%u) removed [%s]\n", pid, name);
 		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)

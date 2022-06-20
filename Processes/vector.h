@@ -263,8 +263,8 @@ void vector<T>::free()
 template <typename T>
 void vector<T>::adjust(int index)
 {
-	if (_size > 0 && !_elem[index])
+	for (int i = index; i < _size - 1; ++i)
 	{
-		_elem[index] = _elem[_size - 1];
+		_elem[i] = _elem[i + 1];
 	}
 }
