@@ -11,7 +11,6 @@ FastMutex mutex;
 vector<ProcessInfo*> processes;
 vector<const char*> names;
 vector<ProcessInfo*> allProcesses;
-vector<ProcessInfo> procs;
 //------------------------------------------
 
 
