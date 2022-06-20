@@ -3,7 +3,6 @@
 
 
 #define DbgMsg(x, ...) DbgPrintEx(0, 0, x, __VA_ARGS__)
-#define SIZE(a) sizeof(a)/sizeof(*a)
 #define DRIVER_TAG 'lifo'
 
 UNICODE_STRING dos = RTL_CONSTANT_STRING(L"\\??\\random");
@@ -23,13 +22,3 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 
 constexpr auto SizeOf = []<size_t size>(auto(&)[size]) { return size; };
 #define SIZEOF(a) SizeOf(a)
-
-template <typename T>
-class vector;
-
-template <typename T>
-struct Globals
-{
-	FastMutex Mutex{};
-	vector<T> vec{};
-};
