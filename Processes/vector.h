@@ -22,11 +22,10 @@ public:
 	// ---------------------------------------------------------------
 	/*vector() {}
 	explicit vector(int size) { reserve(size); }
-	~vector() { is_pointer<T>::value ? pool_free() : free(); }*/
+	~vector() { if (_elem) free(); }*/
 	// ---------------------------------------------------------------
 
-	// read and write is just an experiment where we just get a error message 
-	// without crashing the system (only works with pointers).
+	
 	constexpr T read(int index) const;
 	void write(int index, const T& value);
 
