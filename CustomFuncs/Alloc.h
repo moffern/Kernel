@@ -17,7 +17,7 @@
 	but this makes sure that you never forget to free any allocations made with Alloc.
 
 	Ofc you still have to call FreeAll somewhere your self to make sure everything is
-	deallocated. Always use Free or FreAll to free any allocations made with Alloc. 
+	deallocated. Always use Free or FreeAll to free any allocations made with Alloc. 
 	If you manualy use ExFreePool with something you allocated with Alloc,
 	you will crash the system when FreeAll or Free tryes to use the same address.
 */
