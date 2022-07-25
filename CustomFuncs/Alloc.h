@@ -19,7 +19,7 @@
 	Ofc you still have to call FreeAll somewhere your self to make sure everything is
 	deallocated. Always use Free or FreeAll to free any allocations made with Alloc. 
 	If you manualy use ExFreePool with something you allocated with Alloc,
-	you will crash the system when FreeAll or Free the same memory.
+	a system crash will happen when FreeAll tries to Free the same memory.
 */
 
 class _ALLOC_
