@@ -166,7 +166,7 @@ void vector<T>::free(auto& p)
 				_heap[--_count] = NULL;
 			}
 
-			DbgMsg("ExFreePool(%llx)\n", p);
+			DbgMsg("ExFreePool(%llx)\n", (ULONG_PTR)p);
 			ExFreePool(p);
 
 			if (_elem[i] == (T)p)
