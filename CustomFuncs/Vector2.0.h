@@ -241,10 +241,16 @@ void vector<T>::remove(ULONG_PTR p)
 	{
 		if (_heap[i] == p)
 		{
-			auto ptr = _heap[i];
-			_heap[i] = _heap[--_count];
-			DbgMsg("ExFreePool(%llx)\n", ptr);
-			ExFreePool((PVOID)ptr);
+			if (i == _count - 1)
+				_heap[--_count] = NULL;
+			else
+			{
+				_heap[i] = _heap[_count - 1];
+				_heap[--_count] = NULL;
+			}
+
+			DbgMsg("ExFreePool(%llx)\n", p);
+			ExFreePool((PVOID)p);
 			return;
 		}
 	}
