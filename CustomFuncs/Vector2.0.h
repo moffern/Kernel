@@ -88,7 +88,7 @@ void vector<T>::push_back(const T& value)
 template <typename T>
 void vector<T>::pop_back()
 {
-	if (_size == 0)
+	if (_size == 0 || !_elem)
 		return;
 
 	if (is_pointer<T>::value)
