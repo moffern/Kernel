@@ -88,7 +88,7 @@ void vector<T>::push_back(const T& value)
 template <typename T>
 void vector<T>::pop_back()
 {
-	if (_size == 0 || !_elem)
+	if (_size == 0)
 		return;
 
 	if (is_pointer<T>::value)
@@ -158,32 +158,24 @@ void vector<T>::free(auto& p)
 	{
 		if (_heap[i] == (ULONG_PTR)p)
 		{
-			auto ptr = _heap[i];
-			_heap[i] = _heap[--_count];
-			DbgMsg("ExFreePool(%llx)\n", ptr);
-			ExFreePool((PVOID)ptr);
+			if (i == _count - 1)
+				_heap[--_count] = NULL;
+			else
+			{
+				_heap[i] = _heap[_count - 1];
+				_heap[--_count] = NULL;
+			}
+
+			DbgMsg("ExFreePool(%llx)\n", p);
+			ExFreePool(p);
 
 			if (_elem[i] == (T)p)
-			{
 				_elem[i] = _elem[--_size];
-				p = nullptr;
-				return;
-			}
-			else
-				break;
-		}
-	}
 
-	for (int i = 0; i < _size; ++i)
-	{
-		if (_elem[i] == (T)p)
-		{
-			_elem[i] = _elem[--_size];
 			p = nullptr;
 			return;
 		}
 	}
-	p = nullptr;
 }
 
 
