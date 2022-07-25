@@ -61,7 +61,7 @@ void vector<T>::push_back(const T& value)
 	if (!_allocated)
 		allocate();
 
-	if (_allocated && _size < _maxSize)
+	if (_elem && _size < _maxSize)
 		_elem[_size++] = value;
 }
 
