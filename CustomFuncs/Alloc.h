@@ -57,7 +57,7 @@ private:
 
 
 
-inline void _ALLOC_::Init(int newCapacity)
+void _ALLOC_::Init(int newCapacity)
 {
 	if (newCapacity == _capacity || newCapacity < _size)
 		return;
@@ -97,7 +97,7 @@ inline void _ALLOC_::Init(int newCapacity)
 }
 
 
-inline PVOID _ALLOC_::Alloc(size_t NumberOfBytes, ULONG64 PoolFlag, ULONG Tag)
+PVOID _ALLOC_::Alloc(size_t NumberOfBytes, ULONG64 PoolFlag, ULONG Tag)
 {
 	auto flag = (LONG64)PoolFlag;
 	if (_bittest64(&flag, offset(POOL_FLAG_PAGED)))
@@ -132,7 +132,7 @@ inline PVOID _ALLOC_::Alloc(size_t NumberOfBytes, ULONG64 PoolFlag, ULONG Tag)
 }
 
 
-inline bool _ALLOC_::Free(auto& p)
+bool _ALLOC_::Free(auto& p)
 {
 	ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL);
 
@@ -167,7 +167,7 @@ inline bool _ALLOC_::Free(auto& p)
 }
 
 
-inline void _ALLOC_::FreeAll()
+void _ALLOC_::FreeAll()
 {
 	ASSERT(KeGetCurrentIrql() <= DISPATCH_LEVEL);
 
