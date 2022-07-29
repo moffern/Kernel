@@ -77,8 +77,8 @@ public:
 	// Ptr to allocated buffer
 	constexpr auto Buffer() const { return _unicode.Buffer; }
 
-	constexpr auto Unicode() const { return (PCUNICODE_STRING)&_unicode; }
-	constexpr auto Ansi() { if (!_updated)InitializeAnsi(); return (PCANSI_STRING)&_ansi; }
+	constexpr auto Unicode() { return  &_unicode; }
+	constexpr auto Ansi() { if (!_updated)InitializeAnsi(); return &_ansi; }
 
 	// Use this if ~WString() is not used
 	//void Free();
@@ -110,7 +110,7 @@ private:
 WString::WString(const WCHAR* wStr)
 	: _unicode{ USHORT(wcslen(wStr) * _wSize)
 	, USHORT(wcslen(wStr) * _wSize + _wSize), nullptr }
-	, _len{ wcslen(wStr) }
+	, _len{ wcslen(wStr) }, _updated{false}
 {
 	DbgMsg("WString::WString(const WCHAR* wStr) called\n");
 	if (wStr)
@@ -127,7 +127,7 @@ WString::WString(const WCHAR* wStr)
 
 WString::WString(PCUNICODE_STRING wStr)
 	: _unicode{ wStr->Length, USHORT(wStr->Length + _wSize), nullptr }
-	, _len{ size_t(wStr->Length / _wSize) }
+	, _len{ size_t(wStr->Length / _wSize) }, _updated{false}
 {
 	DbgMsg("WString::WString(PCUNICODE_STRING wStr) called\n");
 	if (wStr->Buffer)
@@ -145,7 +145,7 @@ WString::WString(PCUNICODE_STRING wStr)
 WString::WString(const CHAR* aStr)
 	: _unicode{ USHORT(strlen(aStr) * _wSize)
 	, USHORT(strlen(aStr) * _wSize + _wSize), nullptr}
-	, _len{ strlen(aStr) }
+	, _len{ strlen(aStr) }, _updated{false}
 {
 	DbgMsg("WString::WString(const CHAR* aStr) called\n");
 	if (aStr)
@@ -164,7 +164,7 @@ WString::WString(const CHAR* aStr)
 WString::WString(const PANSI_STRING aStr)
 	: _unicode{ USHORT(aStr->Length * _wSize)
 	, USHORT(aStr->Length * _wSize + _wSize), nullptr }
-	, _len{ size_t(aStr->Length) }
+	, _len{ size_t(aStr->Length) }, _updated{false}
 {
 	DbgMsg("WString::WString(const PANSI_STRING aStr) called\n");
 	if (aStr->Buffer)
@@ -197,6 +197,14 @@ WString::~WString()
 
 WString::WString(const WString& rhs) : WString(&rhs._unicode)
 { DbgMsg("WString::WString(const WString& rhs) called\n"); }
+
+
+WString::WString(WString&& rhs) noexcept
+	: _unicode{ rhs._unicode }, _len{ rhs._len }, _updated{ false }
+{
+	DbgMsg("WString::WString(WString&& rhs) noexcept called\n");
+	RtlZeroMemory(&rhs, sizeof(WString));
+}
 
 
 WString& WString::operator=(const WString& rhs)
@@ -233,15 +241,6 @@ WString& WString::operator=(const WString& rhs)
 }
 
 
-WString::WString(WString&& rhs) noexcept
-	: _unicode{ rhs._unicode }, _len{ rhs._len }
-{
-	DbgMsg("WString::WString(WString&& rhs) noexcept called\n");
-	if (rhs._unicode.Buffer)
-		RtlZeroMemory(&rhs, sizeof(WString));
-}
-
-
 WString& WString::operator=(WString&& rhs) noexcept
 {
 	DbgMsg("WString& WString::operator=(WString&& rhs) noexcept called\n");
@@ -262,10 +261,7 @@ WString& WString::operator=(WString&& rhs) noexcept
 		}
 
 		_len = rhs._len;
-		_unicode.Buffer = rhs._unicode.Buffer;
-		_unicode.Length = rhs._unicode.Length;
-		_unicode.MaximumLength = rhs._unicode.MaximumLength;
-
+		_unicode = { rhs._unicode.Length, rhs._unicode.MaximumLength, rhs._unicode.Buffer };
 		RtlZeroMemory(&rhs, sizeof(WString));
 	}
 	return *this;
