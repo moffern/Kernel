@@ -1,11 +1,12 @@
 #pragma once
+#include "..\..\KernelHelperFuncs\KernelHelperFuncs\WString.h"
 #include "fastmutex.h"
 
 
 #define DbgMsg(x, ...) DbgPrintEx(0, 0, x, __VA_ARGS__)
-#define DRIVER_TAG 'lifo'
+#define DRIVER_TAG 'ofiL'
 
-UNICODE_STRING dos = RTL_CONSTANT_STRING(L"\\??\\random");
+//UNICODE_STRING dos = RTL_CONSTANT_STRING(L"\\??\\random");
 
 NTSTATUS IrpComplete(PIRP Irp, NTSTATUS Status = STATUS_SUCCESS, ULONG_PTR Info = 0);
 DRIVER_UNLOAD UnloadDriver;
