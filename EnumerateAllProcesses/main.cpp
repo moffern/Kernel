@@ -18,6 +18,7 @@ extern "C"
 NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING)
 {
 	mutex.Init();
+	WString dos{ "\\??\\random" };
 
 	auto status = STATUS_SUCCESS;
 	PDEVICE_OBJECT DeviceObject = nullptr;
@@ -27,8 +28,10 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING)
 
 	do
 	{
-		UNICODE_STRING dev = RTL_CONSTANT_STRING(L"\\Device\\random");
-		status = IoCreateDevice(pDriverObject, 0, &dev, FILE_DEVICE_UNKNOWN, 0, FALSE, &DeviceObject);
+		//UNICODE_STRING dev = RTL_CONSTANT_STRING(L"\\Device\\random");
+
+		WString dev{ "\\Device\\random" };
+		status = IoCreateDevice(pDriverObject, 0, dev.Unicode(), FILE_DEVICE_UNKNOWN, 0, FALSE, &DeviceObject);
 		if (!NT_SUCCESS(status))
 		{
 			DbgMsg("failed in IoCreateDevice\n");
@@ -37,7 +40,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING)
 		DeviceObject->Flags |= DO_DIRECT_IO;
 		DeviceObject->Flags &= ~DO_DEVICE_INITIALIZING;
 
-		status = IoCreateSymbolicLink(&dos, &dev);
+		status = IoCreateSymbolicLink(dos.Unicode(), dev.Unicode());
 		if (!NT_SUCCESS(status))
 		{
 			DbgMsg("failed in IoCreateSymbolicLink\n");
@@ -57,7 +60,7 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING)
 	if (!NT_SUCCESS(status))
 	{
 		if (symLink)
-			IoDeleteSymbolicLink(&dos);
+			IoDeleteSymbolicLink(dos.Unicode());
 		if (DeviceObject)
 			IoDeleteDevice(DeviceObject);
 		return status;
@@ -76,8 +79,9 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT pDriverObject, PUNICODE_STRING)
 
 void UnloadDriver(PDRIVER_OBJECT pDriverObject)
 {
+	WString dos{ "\\??\\random" };
 	PsSetCreateProcessNotifyRoutineEx(OnProcessNotify, TRUE);
-	IoDeleteSymbolicLink(&dos);
+	IoDeleteSymbolicLink(dos.Unicode());
 	IoDeleteDevice(pDriverObject->DeviceObject);
 
 	{
@@ -114,7 +118,7 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 	{
 		for (int i = 0; i < str.size(); ++i)
 		{
-			if (strstr(str.read(i), substr))
+			if (strstr(str.at(i), substr))
 				return i;
 		}
 		return -1;
@@ -129,7 +133,7 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 			auto name = (const char*)Irp->AssociatedIrp.SystemBuffer;
 			if (found(names, name) < 0)
 			{
-				auto ptr = (char*)ExAllocatePoolWithTag(PagedPool, strlen(name) + 1, DRIVER_TAG);
+				auto ptr = (char*)ExAllocatePool2(POOL_FLAG_PAGED, strlen(name) + 1, DRIVER_TAG);
 				if (ptr)
 				{
 					AutoLock lock(mutex);
@@ -140,8 +144,8 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 				DbgMsg("Name list:\n");
 				for (int i = 0; i < names.size(); ++i)
 				{
-					if (names.read(i) != 0)
-						DbgMsg("%s\n", names.read(i));
+					if (names.at(i) != 0)
+						DbgMsg("%s\n", names.at(i));
 				}
 				status = STATUS_SUCCESS;
 				byteIO = stack->Parameters.DeviceIoControl.InputBufferLength;
@@ -166,22 +170,22 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 			if (index >= 0)
 			{
 				AutoLock lock(mutex);
-				DbgMsg("process %s removed\n", names.read(index));
-				ExFreePool((PVOID)names.read(index));
-				names.write(index, nullptr);
+				DbgMsg("process %s removed\n", names.at(index));
+				ExFreePool((PVOID)names.at(index));
+				names.at(index) = nullptr;
 				if (index == names.size() - 1)
 					names.pop_back();
 				else
 				{
-					names.adjust(index);
+					names.at(index) = names.at(names.size() - 1);
 					names.pop_back();
 				}
 
 				DbgMsg("Name list:\n");
 				for (int i = 0; i < names.size(); ++i)
 				{
-					if (names.read(i))
-						DbgMsg("%s\n", names.read(i));
+					if (names.at(i))
+						DbgMsg("%s\n", names.at(i));
 				}
 				status = STATUS_SUCCESS;
 				byteIO = stack->Parameters.DeviceIoControl.InputBufferLength;
@@ -205,16 +209,16 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 				AutoLock lock(mutex);
 				while (processes.size() > 0)
 				{
-					if(processes.read(processes.size() - 1))
-						ExFreePool(processes.read(processes.size() - 1));
+					if (processes.at(processes.size() - 1))
+						ExFreePool(processes.at(processes.size() - 1));
 					processes.pop_back();
 				}
 			}
 
 			for (int i = 0; i < names.size(); ++i)
 			{
-				if (names.read(i))
-					FindProcess(names.read(i), processes);
+				if (names.at(i))
+					FindProcess(names.at(i), processes);
 			}
 
 			auto buffer = (ProcessInfo*)Irp->AssociatedIrp.SystemBuffer;
@@ -229,12 +233,12 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 				AutoLock lock(mutex);
 				for (int i = 0; i < _size; ++i)
 				{
-					memcpy(buffer[i].Name, processes.read(i)->Name, SIZEOF(buffer->Name));
-					buffer[i].PidCount = processes.read(i)->PidCount;
+					memcpy(buffer[i].Name, processes.at(i)->Name, SIZEOF(buffer->Name));
+					buffer[i].PidCount = processes.at(i)->PidCount;
 					for (int j = 0; j < SIZEOF(buffer->Pid); ++j)
 					{
-						if (processes.read(i)->Pid[j] != 0)
-							buffer[i].Pid[index++] = processes.read(i)->Pid[j];
+						if (processes.at(i)->Pid[j] != 0)
+							buffer[i].Pid[index++] = processes.at(i)->Pid[j];
 					}
 					byteIO += sizeof(buffer[i]);
 					index = 0;
@@ -267,12 +271,12 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 				AutoLock lock(mutex);
 				for (int i = 0; i < _size; ++i)
 				{
-					memcpy(buffer[i].Name, allProcesses.read(i)->Name, SIZEOF(buffer->Name));
-					buffer[i].PidCount = allProcesses.read(i)->PidCount;
+					memcpy(buffer[i].Name, allProcesses.at(i)->Name, SIZEOF(buffer->Name));
+					buffer[i].PidCount = allProcesses.at(i)->PidCount;
 					for (int j = 0; j < SIZEOF(buffer->Pid); ++j)
 					{
-						if (allProcesses.read(i)->Pid[j] != 0)
-							buffer[i].Pid[index++] = allProcesses.read(i)->Pid[j];
+						if (allProcesses.at(i)->Pid[j] != 0)
+							buffer[i].Pid[index++] = allProcesses.at(i)->Pid[j];
 					}
 					byteIO += sizeof(buffer[i]);
 					index = 0;
@@ -300,21 +304,21 @@ NTSTATUS IoControl(PDEVICE_OBJECT, PIRP Irp)
 			{
 				for (int i = 0; i < allProcesses.size(); ++i)
 				{
-					if (strstr(allProcesses.read(i)->Name, name))
+					if (strstr(allProcesses.at(i)->Name, name))
 					{
-						for (int j = 0; j < SIZEOF(allProcesses.read(i)->Pid); ++j)
+						for (int j = 0; j < SIZEOF(allProcesses.at(i)->Pid); ++j)
 						{
-							if (allProcesses.read(i)->Pid[j] != 0)
+							if (allProcesses.at(i)->Pid[j] != 0)
 							{
-								HideByPid(allProcesses.read(i)->Pid[j]);
-								DbgMsg("%s (%u) hidden\n", allProcesses.read(i)->Name, allProcesses.read(i)->Pid[j]);
+								HideByPid(allProcesses.at(i)->Pid[j]);
+								DbgMsg("%s (%u) hidden\n", allProcesses.at(i)->Name, allProcesses.at(i)->Pid[j]);
 							}
 						}
 						{
 							AutoLock lock(mutex);
-							ExFreePool(allProcesses.read(i));
-							allProcesses.write(i, nullptr);
-							allProcesses.adjust(i);
+							ExFreePool(allProcesses.at(i));
+							allProcesses.at(i) = nullptr;
+							allProcesses.at(i) = allProcesses.at(allProcesses.size() - 1);
 							allProcesses.pop_back();
 						}
 					}
@@ -380,7 +384,7 @@ void FindProcess(const char* name, vector<ProcessInfo*>& vec)
 				}
 				else
 				{
-					auto ptr = (ProcessInfo*)ExAllocatePoolWithTag(PagedPool, sizeof(ProcessInfo), DRIVER_TAG);
+					auto ptr = (ProcessInfo*)ExAllocatePool2(POOL_FLAG_PAGED, sizeof(ProcessInfo), DRIVER_TAG);
 					if (!ptr)
 					{
 						DbgMsg("(FindProcessByName) -> failed allocation\n");
@@ -410,10 +414,10 @@ ProcessInfo* RetProcByName(const char* name, vector<ProcessInfo*>& vec, int& ind
 	AutoLock lock(mutex);
 	for (int i = 0; i < vec.size(); ++i)
 	{
-		if (strstr((char*)vec.read(i)->Name, name))
+		if (strstr((char*)vec.at(i)->Name, name))
 		{
 			index = i;
-			return vec.read(i);
+			return vec.at(i);
 		}
 	}
 	return nullptr;
@@ -479,7 +483,7 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 			}
 			else
 			{
-				auto ptr = (ProcessInfo*)ExAllocatePoolWithTag(PagedPool, sizeof(ProcessInfo), DRIVER_TAG);
+				auto ptr = (ProcessInfo*)ExAllocatePool2(POOL_FLAG_PAGED, sizeof(ProcessInfo), DRIVER_TAG);
 				if (!ptr)
 				{
 					DbgMsg("(OnProcessNotify) -> failed allocation\n");
@@ -514,10 +518,10 @@ void OnProcessNotify(PEPROCESS, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateI
 				}
 				else
 				{
-					DbgMsg("Last -> PID: (%u) removed [%s]\n", pid, allProcesses.read(index)->Name);
-					ExFreePool(allProcesses.read(index));
-					allProcesses.write(index, nullptr);
-					allProcesses.adjust(index);
+					DbgMsg("Last -> PID: (%u) removed [%s]\n", pid, allProcesses.at(index)->Name);
+					ExFreePool(allProcesses.at(index));
+					allProcesses.at(index) = nullptr;
+					allProcesses.at(index) = allProcesses.at(allProcesses.size() - 1);
 					allProcesses.pop_back();
 				}
 			}
