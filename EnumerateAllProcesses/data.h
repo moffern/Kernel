@@ -1,5 +1,5 @@
 #pragma once
-#include "..\..\KernelHelperFuncs\KernelHelperFuncs\WString.h"
+#include "WString.h"
 #include "fastmutex.h"
 
 
